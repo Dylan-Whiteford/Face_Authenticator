@@ -8,6 +8,10 @@ import face_recognition
 import pickle
 import argparse
 import os
+import uuid
+
+
+import cv2
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_ENCODINGS_PATH = Path(PATH+"/output/encodings.pkl")
@@ -72,6 +76,7 @@ def recognize_faces(
     image_location: str,
     model: str = "hog",
     encodings_location: Path = DEFAULT_ENCODINGS_PATH,
+    display_mode: bool = True,
 ) -> None:
     with encodings_location.open(mode="rb") as f:
         loaded_encodings = pickle.load(f)
@@ -88,15 +93,40 @@ def recognize_faces(
     pillow_image = Image.fromarray(input_image)
     draw = ImageDraw.Draw(pillow_image)
 
+    faces_found = 0
+    new_faces_found = 0
     for bounding_box, unknown_encoding in zip(
         input_face_locations, input_face_encodings
     ):
-        name = _recognize_face(unknown_encoding, loaded_encodings)
-        if not name:
-            name = "Unknown"
-        _display_face(draw, bounding_box, name)
+        faces_found += 1
+        face_id = _recognize_face(unknown_encoding, loaded_encodings)
+        dir_path = "images/training/"+face_id+"/"
+        if not face_id:
+
+            new_faces_found += 1
+            # Genereate unique ID
+            face_id = uuid.uuid4()
+            os.makedirs(dir_path)
+
+        # Get a count of photots for the user. This will act as the name for the new image
+        photoID = 0
+        # Iterate directory
+        for path in os.listdir(dir_path):
+            # check if current path is a file
+            if os.path.isfile(os.path.join(dir_path, path)):
+                photoID += 1
+
+        # Dont save more than 10 images per user
+        if(photoID < 10):
+            cropped_image = pillow_image.crop(bounding_box)
+            cropped_image.save(dir_path + str(photoID) + '.jpg')
+
+        if(display_mode):
+            _display_face(draw, bounding_box, face_id)
     del draw
-    pillow_image.show()
+    if(display_mode):
+        pillow_image.show()
+
 
 def _recognize_face(unknown_encoding, loaded_encodings):
     boolean_matches = face_recognition.compare_faces(
@@ -145,4 +175,6 @@ if __name__ == "__main__":
         validate(model=args.m)
     if args.test:
         recognize_faces(image_location=args.f, model=args.m)
+
+
 
