@@ -100,13 +100,15 @@ def recognize_faces(
     ):
         faces_found += 1
         face_id = _recognize_face(unknown_encoding, loaded_encodings)
-        dir_path = "images/training/"+face_id+"/"
         if not face_id:
 
             new_faces_found += 1
             # Genereate unique ID
-            face_id = uuid.uuid4()
+            face_id = str(uuid.uuid4())
+            dir_path = "images/training/"+face_id+"/"
             os.makedirs(dir_path)
+        dir_path = "images/training/"+face_id+"/"
+
 
         # Get a count of photots for the user. This will act as the name for the new image
         photoID = 0
@@ -118,12 +120,19 @@ def recognize_faces(
 
         # Dont save more than 10 images per user
         if(photoID < 10):
-            cropped_image = pillow_image.crop(bounding_box)
-            cropped_image.save(dir_path + str(photoID) + '.jpg')
+            
+            print(bounding_box)
+            _crop_face(draw, bounding_box, face_id,pillow_image,dir_path,photoID)
 
         if(display_mode):
             _display_face(draw, bounding_box, face_id)
     del draw
+    print(dir_path + str(photoID) + '.jpg')
+
+    if(new_faces_found > 0):
+        # Retrain model with new users
+        encode_known_faces()
+
     if(display_mode):
         pillow_image.show()
 
@@ -160,6 +169,10 @@ def _display_face(draw, bounding_box, name):
         name,
         fill="white",
     )
+def _crop_face(draw, bounding_box, name, image, dir_path, photoID):
+    top, right, bottom, left = bounding_box
+    cropped_image = image.crop((left, top , right, bottom))
+    cropped_image.save(dir_path + str(photoID) + '.jpg')
 
 def validate(model: str = "hog"):
     for filepath in Path("images/validation").rglob("*"):

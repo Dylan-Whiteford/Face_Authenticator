@@ -36,10 +36,12 @@ def Recorder():
             os.remove(path)
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        name = PATH+"/live/frame%d.jpg"%count
-        cv2.imwrite(name, frame)
+        image_path = PATH+"/live/frame%d.jpg"%count
+
+        cv2.imwrite(image_path, frame)
+        Detector.recognize_faces(image_path)
         count +=1
-        cv2.imshow("frame", gray)
+        cv2.imshow("frame",gray)
             
         rval, frame = vc.read()
         key = cv2.waitKey(20)

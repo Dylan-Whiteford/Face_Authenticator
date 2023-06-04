@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./Face_Image_Scanner"
+    ]
+}
