@@ -1,5 +1,6 @@
 {
     "python.analysis.extraPaths": [
         "./Face_Image_Scanner"
-    ]
+    ],
+    "ansible.python.interpreterPath": "/home/dylan/Desktop/Varsity/Honours/Sem_1/COS783/Pracs/Ass_6/Face_Authenticator/env/bin/python"
 }

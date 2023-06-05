@@ -9,16 +9,16 @@ import pickle
 import argparse
 import os
 import uuid
-
+import asyncio
 
 import cv2
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_ENCODINGS_PATH = Path(PATH+"/output/encodings.pkl")
 
-#Path("images/training").mkdir(exist_ok=True)
+#Path(PATH+"/images/training").mkdir(exist_ok=True)
 #Path("output").mkdir(exist_ok=True)
-#Path("images/validation").mkdir(exist_ok=True)
+#Path("/images/validation").mkdir(exist_ok=True)
 
 parser = argparse.ArgumentParser(description="Recognize faces in an image")
 parser.add_argument("--train", action="store_true", help="Train on input data")
@@ -45,19 +45,8 @@ def encode_known_faces(
 ) -> None:
     names = []
     encodings = []
-    for filepath in Path("images/training").glob("*/*"):
-        name = filepath.parent.name
-        image = face_recognition.load_image_file(filepath)
 
-
-
-def encode_known_faces(
-    model: str = "hog", encodings_location: Path = DEFAULT_ENCODINGS_PATH
-) -> None:
-    names = []
-    encodings = []
-
-    for filepath in Path("images/training").glob("*/*"):
+    for filepath in Path(PATH+"/images/training").glob("*/*"):
         name = filepath.parent.name
         image = face_recognition.load_image_file(filepath)
 
@@ -72,12 +61,18 @@ def encode_known_faces(
     with encodings_location.open(mode="wb") as f:
         pickle.dump(name_encodings, f)
 
+
+
+
+
 def recognize_faces(
     image_location: str,
     model: str = "hog",
-    encodings_location: Path = DEFAULT_ENCODINGS_PATH,
     display_mode: bool = True,
 ) -> None:
+    print("=======================")
+    print("Begin face Scan\n")
+    encodings_location: Path = DEFAULT_ENCODINGS_PATH
     with encodings_location.open(mode="rb") as f:
         loaded_encodings = pickle.load(f)
 
@@ -101,15 +96,17 @@ def recognize_faces(
         faces_found += 1
         face_id = _recognize_face(unknown_encoding, loaded_encodings)
         if not face_id:
-
             new_faces_found += 1
             # Genereate unique ID
             face_id = str(uuid.uuid4())
-            dir_path = "images/training/"+face_id+"/"
+            dir_path = PATH+"/images/training/"+face_id+"/"
             os.makedirs(dir_path)
-        dir_path = "images/training/"+face_id+"/"
+            print("Unknown face "+face_id)
+        else:
+            print("Found "+face_id)
 
 
+        dir_path = PATH+"/images/training/"+face_id+"/"
         # Get a count of photots for the user. This will act as the name for the new image
         photoID = 0
         # Iterate directory
@@ -120,21 +117,47 @@ def recognize_faces(
 
         # Dont save more than 10 images per user
         if(photoID < 10):
-            
-            print(bounding_box)
             _crop_face(draw, bounding_box, face_id,pillow_image,dir_path,photoID)
+            if(photoID == 5 or photoID == 9):
+                # Retrain for user when we get 9 or 5 photos of them
+                print("Refactor user images "+face_id)
+                encode_known_faces()
 
         if(display_mode):
             _display_face(draw, bounding_box, face_id)
-    del draw
-    print(dir_path + str(photoID) + '.jpg')
 
-    if(new_faces_found > 0):
-        # Retrain model with new users
-        encode_known_faces()
+    del draw
 
     if(display_mode):
         pillow_image.show()
+
+
+    if(new_faces_found > 0):
+        # Retrain model with new users
+        print("Encoding new Faces")
+        encode_known_faces()
+
+
+        print("\nEnd face Scan")
+        print("=======================")
+        return True, face_id
+
+    elif faces_found==0:
+        print("No faces found")
+
+        print("\nEnd face Scan")
+        print("=======================")
+        return False, None
+    
+    else:
+        print("\nEnd face Scan")
+        print("=======================")
+        return False, face_id
+
+
+        
+
+
 
 
 def _recognize_face(unknown_encoding, loaded_encodings):
@@ -175,7 +198,7 @@ def _crop_face(draw, bounding_box, name, image, dir_path, photoID):
     cropped_image.save(dir_path + str(photoID) + '.jpg')
 
 def validate(model: str = "hog"):
-    for filepath in Path("images/validation").rglob("*"):
+    for filepath in Path(PATH+"/images/validation").rglob("*"):
         if filepath.is_file():
             recognize_faces(
                 image_location=str(filepath.absolute()), model=model
