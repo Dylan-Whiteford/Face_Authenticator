@@ -4,3 +4,5 @@ env
 # Images
 .jpg
 .jpeg
+*.jpg
+*.jpeg
