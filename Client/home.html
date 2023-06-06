@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>FMP Dash Board</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" />
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+
+    <style>
+        html,
+        body,
+        h1,
+        h2,
+        h3,
+        h4,
+        h5 {
+            font-family: "Raleway", sans-serif
+        }
+    </style>
+</head>
+<body class="w3-light-grey">
+
+
+    <!-- Top container -->
+    <div class="w3-bar w3-top w3-black w3-large" style="z-index:4">
+        <button class="w3-bar-item w3-button w3-hide-large w3-hover-none w3-hover-text-light-grey"
+            onclick="w3_open();"><i class="fa fa-bars"></i>  Menu</button>
+        <span class="w3-bar-item w3-right">Logo</span>
+    </div>
+
+
+    <!-- Overlay effect when opening sidebar on small screens -->
+    <div class="w3-overlay w3-hide-large w3-animate-opacity" onclick="w3_close()" style="cursor:pointer"
+        title="close side menu" id="myOverlay"></div>
+
+    <!-- !PAGE CONTENT! -->
+    <div class="w3-main" style="margin-top:43px;">
+
+        <!-- Header -->
+        <header class="w3-container" style="padding-top:22px">
+                <h1><b><i class="fa fa-dashboard"></i> Dashboard</b></h1>
+            </div>  
+        </header>
+        
+        <!-- Range Selector -->
+        <div class="w3-row-padding w3-margin-bottom">
+
+            <div class="w3-half">
+                <label for="Start-Time">Search Time :</label>
+                <input type="datetime-local" id="Start-Time" name="Start-Time">
+            </div>
+
+            <div class="w3-half">
+                <button py-click="getbyday()" id="getbyday_button" class="py-button">Get by day</button>
+                <br>
+                <button py-click="getbyhour()" id="getbyhour_button" class="py-button">Get by hour</button>
+                <button py-click="current_time()" id="get-time" class="py-button">Get current time</button>
+                <p id="current-time"></p>
+
+
+                
+            </div>
+        </div>
+        <hr>
+
+        <div class="w3-row-padding w3-margin-bottom">
+            <div class="w3-third">
+                <div class="w3-container w3-blue w3-padding-16">
+                    <div class="w3-left"><i class="fa fa-user-o w3-xxxlarge"></i></div>
+                    <div class="w3-right">
+                        <h3></h3>
+                    </div>
+                    <div class="w3-clear"></div>
+                    <h4>New Faces</h4>
+                </div>
+            </div>
+            <div class="w3-third">
+                <div class="w3-container w3-blue w3-padding-16">
+                    <div class="w3-left"><i class="fa fa-eye w3-xxxlarge"></i></div>
+                    <div class="w3-right">
+                        <h3></h3>
+                    </div>
+                    <div class="w3-clear"></div>
+                    <h4>Scans</h4>
+                </div>
+            </div>
+            <div class="w3-third">
+                <div class="w3-container w3-red w3-padding-16">
+                    <div class="w3-left"><i class="fa fa-warning w3-xxxlarge"></i></div>
+                    <div class="w3-right">
+                        <h3></h3>
+                    </div>
+                    <div class="w3-clear"></div>
+                    <h4>Alerts</h4>
+                </div>
+            </div>
+        </div>
+
+
+
+        <section class="pyscript">
+            <div id="mpl"></div>
+
+
+
+            <py-script>
+                from pyscript import Element
+            
+                from pyodide.http import pyfetch, FetchResponse
+                from typing import Optional, Any
+                import datetime
+                import matplotlib
+                
+                async def request(url: str, method: str = "GET", body: Optional[str] = None,
+                                    headers: Optional[dict[str, str]] = None, **fetch_kwargs: Any) -> FetchResponse:
+            
+                    kwargs = {"method": method, "mode": "cors"}  # CORS: https://en.wikipedia.org/wiki/Cross-origin_resource_sharing
+                    if body and method not in ["GET", "HEAD"]:
+                        kwargs["body"] = body
+                    if headers:
+                        kwargs["headers"] = headers
+                    kwargs.update(fetch_kwargs)
+                
+                    response = await pyfetch(url, **kwargs)
+                    return response
+            
+                import asyncio
+                import json
+                    
+                async def plot(getbywhat):
+            
+                    print("stuff")
+                    if(getbywhat=="day"):
+            
+                        req = XMLHttpRequest.new()
+                        req.open("GET", "http://127.0.0.1:5000/GetByDay", False)
+                        x = str(req.response)
+                        req.send(None)
+                        print(x)
+                        data, cats,colormapping,catLabels,interval = x['data'],x['cats'],x['col'],x['catlabels'],"day"
+                    
+                    elif(getbywhat=="hour"):
+            
+                        baseurl = "http://127.0.0.1:5000/GetByDay"
+            
+                        # GET
+                        headers = {"Content-type": "application/json"}
+                        response = await request(f"{baseurl}", method="GET", headers=headers)
+                        x = await response.json()
+                        print(x)
+            
+                        data, cats,colormapping,catLabels,interval = x['data'],x['cats'],x['col'],x['catlabels'],"hour"
+                
+                    print("2")
+                    verts = []
+                    colors = []
+                    for d in data:
+                        d_0 = datetime.datetime.strptime(d[0], '%a, %d %b %Y %H:%M:%S GMT')
+                        d_1 = datetime.datetime.strptime(d[1], '%a, %d %b %Y %H:%M:%S GMT')
+                        print("looping")
+                        v = [(matplotlib.dates.date2num(d_0), cats[d[2]]-.4),
+                            (matplotlib.dates.date2num(d_0), cats[d[2]]+.4),
+                            (matplotlib.dates.date2num(d_1), cats[d[2]]+.4),
+                            (matplotlib.dates.date2num(d_1), cats[d[2]]-.4),
+                            (matplotlib.dates.date2num(d_0), cats[d[2]]-.4)]
+                        verts.append(v)
+                        colors.append(colormapping[d[2]])
+                        print("looping")
+                    bars = matplotlib.collections.PolyCollection(verts, facecolors=colors)
+                    print("3")
+                    fig, ax = matplotlib.pyplot.subplots()
+                    ax.add_collection(bars)
+                    ax.autoscale()
+                
+                    if(interval=="hour"):
+                        loc = matplotlib.dates.MinuteLocator(interval=1)
+                        h_fmt = matplotlib.dates.DateFormatter('%H:%M:%S')
+                    elif(interval=="day"):
+                        loc = matplotlib.dates.HourLocator(interval=1)
+                        h_fmt = matplotlib.dates.DateFormatter('%H:%M:%S')
+                
+                    ax.xaxis.set_major_locator(loc)
+                    ax.xaxis.set_major_formatter(h_fmt)
+                
+                    ax.set_yticks(range(1,len(cats)+1 ))
+                    ax.set_yticklabels(catLabels)
+                    fig.autofmt_xdate()
+                    #matplotlib.pyplot.show()
+            
+                    print("Plotting Graph")
+                    display(fig, target="mpl")
+                    print("Plotted Graph")
+                async def getbyhour():
+                    asyncio.ensure_future(plot("hour"))
+            </py-script>
+        </section>
+
+        <!-- Footer -->
+        <footer class="w3-container w3-padding-16 w3-light-grey">
+
+        </footer>
+
+        <!-- End page content -->
+    </div>
+
+</body>
+
+</html>
