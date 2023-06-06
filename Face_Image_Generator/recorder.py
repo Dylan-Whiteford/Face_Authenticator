@@ -1,7 +1,8 @@
 
-from pymongo import MongoClient
+import pymongo
 from PIL import Image
 import io
+import socket
 
 import multiprocessing
 
@@ -10,19 +11,36 @@ import numpy as np
 import cv2
 import os
 import sys
-
+import datetime
 PATH = os.path.dirname(os.path.realpath(__file__))
 live_path = PATH+"/live/"
 isExist = os.path.exists(live_path)
 sys.path.append(PATH+'/../Face_Image_Scanner/')
 import detector as Detector
 
+#Parrellism Libs
 lock = multiprocessing.Lock()
-proteced_image_paths = []
 pool = multiprocessing.Pool()
 
+try:
+    client = pymongo.MongoClient("mongodb://root:example@localhost:27017/")
+    db = client["Face_Tracker"]
+    timeseries= {
+        "timeField": "timestamp",
+        "metaField": "metadata",
+        "granularity": "seconds"
+    }
+    db.createCollection("Face_Log", timeseries, False )
+
+except Exception as err:
+    # do whatever you need
+    print(err)
+
+
+
 def Recorder():
-    
+
+
     if not isExist:
         # Create a new directory because it does not exist
         os.makedirs(live_path)
@@ -39,8 +57,6 @@ def Recorder():
         rval = False
 
     while rval:
-        # Clear image buffer from feed
-        imageBufferCleaner(PATH+"/live/")
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         image_path = PATH+"/live/frame%d.jpg"%count
@@ -57,11 +73,12 @@ def Recorder():
         key = cv2.waitKey(20)
         if key == 27: # exit on ESC
             break
+    
+    client.close()
     vc.release()
 
-# async thread that has a lock. It uses the detector to detect faces
+# Thread that has a lock. It uses the detector to detect faces
 def detectFace(image_path):
-    proteced_image_paths.append(image_path)
     if(lock.acquire(block=False) ):
         print("<lock aquired>")
         try:
@@ -72,22 +89,28 @@ def detectFace(image_path):
 
             # log this scan to mongodb
             if(face_id != None):
-                URI="mongodb://root:example@mongo:27017/"
-                client = MongoClient(URI);
-                db = client.Face_Tracker
-                images = db.Face_Logs
+                print("Attempting to log face detection")
 
-                im = Image.open("./image.jpg")
+                face_logs = db["Face_Log"]
+                # print(face_logs[0])
+                # print("Loaded Collection")
+                im = Image.open(image_path)
                 image_bytes = io.BytesIO()
                 im.save(image_bytes, format='JPEG')
-
-                image = {
-                    'data': image_bytes.getvalue()
+                
+                log = {
+                    'time_captured': datetime.datetime.now(),
+                    'face_id': face_id,
+                    'img': image_bytes.getvalue(),
+                    'agent': socket.gethostname(),
+                    'geo-data': 'mock-geo-data'
                 }
 
-                image_id = images.insert_one(image).inserted_id
+                image_id = face_logs.insert_one(log)
 
-                client.close()
+
+            # Clear image buffer from feed
+            imageBufferCleaner(PATH+"/live/",image_path)
 
         except Exception as e:
             print(e)
@@ -97,14 +120,12 @@ def detectFace(image_path):
         sleep(1)
         lock.release()
         print("<lock released>")
-    proteced_image_paths.remove(image_path)
 
 # a function that will clean up the image folder buffer
-def imageBufferCleaner(buffer_path):
+def imageBufferCleaner(buffer_path,protected_path):
     for path in os.listdir(buffer_path):
         file_path = os.path.join(buffer_path, path)
-
-        if(not file_path in proteced_image_paths):
+        if(not file_path == protected_path):
             os.remove(file_path)
 
 Recorder()
