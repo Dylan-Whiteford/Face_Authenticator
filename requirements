@@ -4,3 +4,8 @@ numpy==1.24.2
 Pillow==9.4.0
 opencv-python
 pymongo
+matplotlib
+fastapi
+uvicorn
+requests
+js
